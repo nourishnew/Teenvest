@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Parent {
+  id        Int       @id @default(autoincrement())
+  userId    String    @unique
+  firstName String
+  lastName String
+  emailAddress String @unique
+  phoneNumber String @unique
+  children  Child[]   // One parent can have multiple children
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Child {
+  id        Int       @id @default(autoincrement())
+  parentId  Int       // Foreign key referencing the parent
+  name      String
+  age       Int
+  pin       Int
+  parent    Parent    @relation(fields: [parentId], references: [id]) // Relation to Parent
+  tradingAccounts TradingAccount[] // One child can have multiple trading accounts
+  stockOwnerships StockOwnership[] // One child can own multiple stocks
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+model TradingAccount {
+  id          Int              @id @default(autoincrement())
+  childId     Int              // Foreign key referencing the child
+  accountType AccountType      // Enum for different types of accounts
+  balance     Float            @default(0.0) // Initial balance set to zero
+  child       Child            @relation(fields: [childId], references: [id])
+  stockOwnerships StockOwnership[] // Back-reference: One trading account can have multiple stock ownerships
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+// Enum to represent the different types of trading accounts
+enum AccountType {
+  TFSA
+  RRSP
+  FHSA
+  SAVINGS
+  CRYPTO
+  CASH
+}
+
+// Model for a stock
+model Stock {
+  id        Int        @id @default(autoincrement()) // Unique identifier for the stock
+  symbol    String     @unique // Stock symbol (e.g., AAPL for Apple, TSLA for Tesla)
+  name      String     // Name of the stock (e.g., Apple Inc., Tesla Inc.)
+  createdAt DateTime   @default(now()) 
+  updatedAt DateTime   @updatedAt
+  stockOwnership StockOwnership[] // One stock can have many stock ownership records
+  stockTransaction StockTransaction[] // One stock can have many stock ownership records
+
+}
+
+// Model for stock ownership
+model StockOwnership {
+  id        Int      @id @default(autoincrement()) // Unique identifier for the stock ownership record
+  childId   Int      // Foreign key referencing the child (user)
+  stockId   Int      // Foreign key referencing the stock
+  tradingAccountId Int      // Foreign key referencing the trading account
+  shares    Float      // Number of shares the child owns
+  purchasePrice Float // Price at which the stock was purchased
+  child     Child    @relation(fields: [childId], references: [id])
+  stock     Stock    @relation(fields: [stockId], references: [id])
+  tradingAccount  TradingAccount @relation(fields: [tradingAccountId], references: [id]) // Link to trading account
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([childId, stockId]) // Ensure a child can only own one record per stock
+}
+
+// Optional: Add a model to track stock transactions (buy/sell)
+model StockTransaction {
+  id          Int      @id @default(autoincrement())
+  stockId     Int      // Foreign key referencing the stock
+  transactionType TransactionType // Enum for Buy/Sell action
+  stock     Stock    @relation(fields: [stockId], references: [id])
+  quantity    Float      // Number of shares bought or sold
+  price       Float    // Price at which the transaction occurred
+  date        DateTime @default(now())
+}
+
+// Enum for transaction type
+enum TransactionType {
+  BUY
+  SELL
+}
